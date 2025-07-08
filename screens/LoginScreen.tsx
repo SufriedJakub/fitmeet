@@ -1,15 +1,20 @@
-
+// screens/LoginScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase/config';
 
 const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = () => {
-    // tu dodamy firebase login
-    console.log('Logging in with:', email, password);
-    navigation.navigate('Home'); // tymczasowo
+  const handleLogin = async () => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      navigation.replace('Home'); // po zalogowaniu wchodzimy do aplikacji
+    } catch (error: any) {
+      Alert.alert('Błąd logowania', error.message);
+    }
   };
 
   return (
@@ -21,6 +26,7 @@ const LoginScreen = ({ navigation }: any) => {
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
+        autoCapitalize="none"
       />
       <TextInput
         placeholder="Hasło"
@@ -30,7 +36,7 @@ const LoginScreen = ({ navigation }: any) => {
         secureTextEntry
       />
       <Button title="Zaloguj się" onPress={handleLogin} />
-      <Text style={styles.registerLink} onPress={() => navigation.navigate('Register')}>
+      <Text style={styles.link} onPress={() => navigation.navigate('Register')}>
         Nie masz konta? Zarejestruj się
       </Text>
     </View>
@@ -41,7 +47,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20 },
   title: { fontSize: 32, textAlign: 'center', marginBottom: 40 },
   input: { borderBottomWidth: 1, marginBottom: 20, fontSize: 16 },
-  registerLink: { marginTop: 20, color: 'blue', textAlign: 'center' },
+  link: { marginTop: 20, color: 'blue', textAlign: 'center' },
 });
 
 export default LoginScreen;
+
