@@ -1,15 +1,20 @@
 // screens/RegisterScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase/config';
 
 const RegisterScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleRegister = () => {
-    // tu dodamy firebase rejestrację
-    console.log('Rejestracja:', email, password);
-    navigation.navigate('ProfileSetup'); // po rejestracji przechodzimy do uzupełnienia profilu
+  const handleRegister = async () => {
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      navigation.replace('ProfileSetup'); // po rejestracji → uzupełnianie profilu
+    } catch (error: any) {
+      Alert.alert('Błąd rejestracji', error.message);
+    }
   };
 
   return (
@@ -21,6 +26,7 @@ const RegisterScreen = ({ navigation }: any) => {
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
+        autoCapitalize="none"
       />
       <TextInput
         placeholder="Hasło"
@@ -30,7 +36,7 @@ const RegisterScreen = ({ navigation }: any) => {
         secureTextEntry
       />
       <Button title="Zarejestruj się" onPress={handleRegister} />
-      <Text style={styles.loginLink} onPress={() => navigation.navigate('Login')}>
+      <Text style={styles.link} onPress={() => navigation.navigate('Login')}>
         Masz już konto? Zaloguj się
       </Text>
     </View>
@@ -41,7 +47,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20 },
   title: { fontSize: 28, textAlign: 'center', marginBottom: 40 },
   input: { borderBottomWidth: 1, marginBottom: 20, fontSize: 16 },
-  loginLink: { marginTop: 20, color: 'blue', textAlign: 'center' },
+  link: { marginTop: 20, color: 'blue', textAlign: 'center' },
 });
 
 export default RegisterScreen;
