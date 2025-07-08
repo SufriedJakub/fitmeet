@@ -1,6 +1,17 @@
-// screens/ProfileSetupScreen.tsx
+/// screens/ProfileSetupScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Picker, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import { db, auth } from '../firebase/config';
+import { doc, setDoc } from 'firebase/firestore';
 
 const ProfileSetupScreen = ({ navigation }: any) => {
   const [name, setName] = useState('');
@@ -9,10 +20,30 @@ const ProfileSetupScreen = ({ navigation }: any) => {
   const [gym, setGym] = useState('');
   const [goal, setGoal] = useState('masa');
 
-  const handleSave = () => {
-    // tu będzie zapis profilu do Firestore
-    console.log({ name, gender, city, gym, goal });
-    navigation.navigate('Home'); // przejście do ekranu swipe'ów
+  const handleSaveProfile = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert('Błąd', 'Nie jesteś zalogowany');
+      return;
+    }
+
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email,
+        name,
+        gender,
+        city,
+        gym,
+        goal,
+        createdAt: new Date(),
+      });
+
+      navigation.replace('Home'); // profil uzupełniony → przejście do swipe’ów
+    } catch (error: any) {
+      Alert.alert('Błąd zapisu profilu', error.message);
+    }
   };
 
   return (
@@ -54,7 +85,7 @@ const ProfileSetupScreen = ({ navigation }: any) => {
         <Picker.Item label="Ogólna sprawność" value="ogolna" />
       </Picker>
 
-      <Button title="Zapisz i przejdź" onPress={handleSave} />
+      <Button title="Zapisz i przejdź" onPress={handleSaveProfile} />
     </ScrollView>
   );
 };
