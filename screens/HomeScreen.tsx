@@ -1,27 +1,73 @@
+// screens/HomeScreen.tsx
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { auth, db } from '../firebase/config';
+import SwipeCard from '../components/SwipeCard';
 
-import React from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
+const HomeScreen = () => {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const HomeScreen = ({ navigation }: any) => {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>FitMeet</Text>
-      <Text style={styles.sub}>Swipe gym bro/sis →</Text>
+  const fetchUsers = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
 
-      {/* Tu będą karty z profilami do przesuwania */}
+    try {
+      const myDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', currentUser.uid)));
+      const myData = myDoc.docs[0].data();
+      const gender = myData.gender;
 
-      <View style={styles.bottom}>
-        <Button title="Czat" onPress={() => navigation.navigate('Chat')} />
+      const q = query(
+        collection(db, 'users'),
+        where('gender', '==', gender),
+        where('uid', '!=', currentUser.uid)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const fetchedUsers = querySnapshot.docs.map(doc => doc.data());
+      setUsers(fetchedUsers);
+    } catch (error) {
+      console.error('Błąd pobierania użytkowników:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" />
+        <Text>Ładowanie użytkowników...</Text>
       </View>
-    </View>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Dopasuj gym bro/sis</Text>
+      {users.length === 0 && <Text>Brak osób do wyświetlenia 😔</Text>}
+      {users.map((user, index) => (
+        <SwipeCard
+          key={index}
+          name={user.name}
+          gym={user.gym}
+          goal={user.goal}
+          city={user.city}
+        />
+      ))}
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center' },
-  title: { fontSize: 32, textAlign: 'center', marginBottom: 20 },
-  sub: { fontSize: 18, textAlign: 'center', marginBottom: 60 },
-  bottom: { marginTop: 60 },
+  container: { padding: 20 },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
 });
 
 export default HomeScreen;
