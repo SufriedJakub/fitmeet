@@ -1,6 +1,13 @@
 // screens/MatchesScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  Button,
+} from 'react-native';
 import { auth, db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
@@ -13,7 +20,10 @@ const MatchesScreen = () => {
   useEffect(() => {
     if (!currentUser) return;
 
-    const q = query(collection(db, 'matches'), where('users', 'array-contains', currentUser.uid));
+    const q = query(
+      collection(db, 'matches'),
+      where('users', 'array-contains', currentUser.uid)
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((doc) => ({
@@ -26,8 +36,15 @@ const MatchesScreen = () => {
     return unsubscribe;
   }, []);
 
-  const handleOpenChat = (match: any) => {
-    navigation.navigate('Chat', { matchId: match.id });
+  const getOtherUser = (users: string[]) =>
+    users.find((uid) => uid !== currentUser?.uid);
+
+  const handleOpenChat = (matchId: string) => {
+    navigation.navigate('Chat', { matchId });
+  };
+
+  const handleViewProfile = (uid: string) => {
+    navigation.navigate('Profile', { uid });
   };
 
   return (
@@ -36,11 +53,16 @@ const MatchesScreen = () => {
       <FlatList
         data={matches}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => handleOpenChat(item)}>
-            <Text style={styles.text}>Match ID: {item.id}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const otherUid = getOtherUser(item.users);
+          return (
+            <View style={styles.card}>
+              <Text style={styles.text}>Match ID: {item.id}</Text>
+              <Button title="Czat" onPress={() => handleOpenChat(item.id)} />
+              <Button title="Zobacz profil" onPress={() => handleViewProfile(otherUid!)} />
+            </View>
+          );
+        }}
       />
     </View>
   );
@@ -48,14 +70,19 @@ const MatchesScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
   card: {
     backgroundColor: '#f0f0f0',
     padding: 16,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 15,
   },
-  text: { fontSize: 16 },
+  text: { fontSize: 16, marginBottom: 10 },
 });
 
 export default MatchesScreen;
