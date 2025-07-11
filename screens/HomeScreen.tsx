@@ -1,13 +1,15 @@
-
+// screens/HomeScreen.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, setDoc, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import SwipeCard from '../components/SwipeCard';
+import { useNavigation } from '@react-navigation/native';
 
 const HomeScreen = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigation = useNavigation();
 
   const fetchUsers = async () => {
     const currentUser = auth.currentUser;
@@ -34,6 +36,40 @@ const HomeScreen = () => {
     }
   };
 
+  const handleSwipeRight = async (userSwiped: any) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    // zapisujemy swipe użytkownika
+    await setDoc(doc(db, 'swipes', `${currentUser.uid}_${userSwiped.uid}`), {
+      from: currentUser.uid,
+      to: userSwiped.uid,
+      timestamp: new Date(),
+    });
+
+    // sprawdzamy, czy ta druga osoba też już nas dała w prawo
+    const docRef = doc(db, 'swipes', `${userSwiped.uid}_${currentUser.uid}`);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      // Mamy match!
+      const matchId = [currentUser.uid, userSwiped.uid].sort().join('_');
+      await setDoc(doc(db, 'matches', matchId), {
+        users: [currentUser.uid, userSwiped.uid],
+        createdAt: new Date(),
+      });
+
+      // Przechodzimy do ekranu match
+      // @ts-ignore
+      navigation.navigate('Match');
+    }
+  };
+
+  const handleSwipeLeft = (userSwiped: any) => {
+    // opcjonalnie można zapisać pominięcia
+    console.log('Pominięto:', userSwiped.name);
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -58,6 +94,8 @@ const HomeScreen = () => {
           gym={user.gym}
           goal={user.goal}
           city={user.city}
+          onSwipeRight={() => handleSwipeRight(user)}
+          onSwipeLeft={() => handleSwipeLeft(user)}
         />
       ))}
     </ScrollView>
