@@ -11,18 +11,20 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
+import { useRoute } from '@react-navigation/native';
 
 const ChatScreen = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
-
   const currentUser = auth.currentUser;
-  const dummyMatchId = 'user1_user2'; // 👈 to na razie test, później dynamicznie
+
+  const route = useRoute();
+  const { matchId } = route.params as { matchId: string };
 
   useEffect(() => {
     const q = query(
       collection(db, 'messages'),
-      where('matchId', '==', dummyMatchId),
+      where('matchId', '==', matchId),
       orderBy('createdAt', 'asc')
     );
 
@@ -38,7 +40,7 @@ const ChatScreen = () => {
     if (input.trim() === '' || !currentUser) return;
 
     await addDoc(collection(db, 'messages'), {
-      matchId: dummyMatchId,
+      matchId,
       sender: currentUser.uid,
       text: input,
       createdAt: serverTimestamp(),
