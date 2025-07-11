@@ -20,6 +20,7 @@ const StackNavigator = () => {
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="Match" component={MatchScreen} />
       <Stack.Screen name="Matches" component={MatchesScreen} />
+      <Stack.Screen name="Invites" component={InvitesScreen} />
     </Stack.Navigator>
   );
 };
