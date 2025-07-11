@@ -40,33 +40,30 @@ const HomeScreen = () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
-    // zapisujemy swipe użytkownika
     await setDoc(doc(db, 'swipes', `${currentUser.uid}_${userSwiped.uid}`), {
       from: currentUser.uid,
       to: userSwiped.uid,
       timestamp: new Date(),
     });
 
-    // sprawdzamy, czy ta druga osoba też już nas dała w prawo
     const docRef = doc(db, 'swipes', `${userSwiped.uid}_${currentUser.uid}`);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      // Mamy match!
       const matchId = [currentUser.uid, userSwiped.uid].sort().join('_');
+
       await setDoc(doc(db, 'matches', matchId), {
         users: [currentUser.uid, userSwiped.uid],
         createdAt: new Date(),
       });
 
-      // Przechodzimy do ekranu match
+      // przejście do czatu z matchId
       // @ts-ignore
-      navigation.navigate('Match');
+      navigation.navigate('Chat', { matchId });
     }
   };
 
   const handleSwipeLeft = (userSwiped: any) => {
-    // opcjonalnie można zapisać pominięcia
     console.log('Pominięto:', userSwiped.name);
   };
 
