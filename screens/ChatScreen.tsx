@@ -1,24 +1,89 @@
+// screens/ChatScreen.tsx
+import React, { useEffect, useState } from 'react';
+import { View, TextInput, FlatList, Text, Button, StyleSheet } from 'react-native';
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { auth, db } from '../firebase/config';
 
-import React from 'react';
-import { View, Text, StyleSheet, Button } from 'react-native';
+const ChatScreen = () => {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState('');
 
-const ChatScreen = ({ navigation }: any) => {
+  const currentUser = auth.currentUser;
+  const dummyMatchId = 'user1_user2'; // 👈 to na razie test, później dynamicznie
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'messages'),
+      where('matchId', '==', dummyMatchId),
+      orderBy('createdAt', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map((doc) => doc.data());
+      setMessages(msgs);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const sendMessage = async () => {
+    if (input.trim() === '' || !currentUser) return;
+
+    await addDoc(collection(db, 'messages'), {
+      matchId: dummyMatchId,
+      sender: currentUser.uid,
+      text: input,
+      createdAt: serverTimestamp(),
+    });
+
+    setInput('');
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Czat</Text>
-      <Text style={styles.info}>Tutaj będą rozmowy z Twoimi gym bro i gym sis 💬</Text>
+      <FlatList
+        data={messages}
+        renderItem={({ item }) => (
+          <Text
+            style={{
+              textAlign: item.sender === currentUser?.uid ? 'right' : 'left',
+              marginVertical: 5,
+            }}
+          >
+            {item.text}
+          </Text>
+        )}
+        keyExtractor={(_, i) => i.toString()}
+      />
 
-      {/* W przyszłości: lista rozmów, klik = wejście w konkretny czat */}
-
-      <Button title="Wróć do swipe'ów" onPress={() => navigation.navigate('Home')} />
+      <TextInput
+        placeholder="Napisz wiadomość..."
+        value={input}
+        onChangeText={setInput}
+        style={styles.input}
+      />
+      <Button title="Wyślij" onPress={sendMessage} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20 },
-  title: { fontSize: 28, textAlign: 'center', marginBottom: 20 },
-  info: { fontSize: 16, textAlign: 'center', marginBottom: 40 },
+  container: { flex: 1, padding: 20, paddingBottom: 60 },
+  input: {
+    borderBottomWidth: 1,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 20,
+    fontSize: 16,
+  },
 });
 
 export default ChatScreen;
