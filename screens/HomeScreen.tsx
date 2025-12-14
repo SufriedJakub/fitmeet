@@ -1,10 +1,11 @@
-
+// screens/HomeScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { collection, query, where, getDocs, setDoc, doc, getDoc } from 'firebase/firestore';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import SwipeCard from '../components/SwipeCard';
 import { useNavigation } from '@react-navigation/native';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 const HomeScreen = () => {
   const [users, setUsers] = useState<any[]>([]);
@@ -16,21 +17,20 @@ const HomeScreen = () => {
     if (!currentUser) return;
 
     try {
-      const myDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', currentUser.uid)));
-      const myData = myDoc.docs[0].data();
-      const gender = myData.gender;
+      setLoading(true);
+      // 1. Pobieramy WSZYSTKICH użytkowników (proste zapytanie, bez błędów indeksów)
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      
+      const allUsers = querySnapshot.docs.map(doc => doc.data());
 
-      const q = query(
-        collection(db, 'users'),
-        where('gender', '==', gender),
-        where('uid', '!=', currentUser.uid)
-      );
+      // 2. Filtrujemy lokalnie (wyrzucamy siebie z listy)
+      // Możesz tu też dodać filtr płci: && u.gender !== myGender
+      const filteredUsers = allUsers.filter((u: any) => u.uid !== currentUser.uid);
 
-      const querySnapshot = await getDocs(q);
-      const fetchedUsers = querySnapshot.docs.map(doc => doc.data());
-      setUsers(fetchedUsers);
-    } catch (error) {
-      console.error('Błąd pobierania użytkowników:', error);
+      setUsers(filteredUsers);
+    } catch (error: any) {
+      console.error('Błąd:', error);
+      Alert.alert('Błąd pobierania', error.message);
     } finally {
       setLoading(false);
     }
@@ -40,31 +40,31 @@ const HomeScreen = () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
-    await setDoc(doc(db, 'swipes', `${currentUser.uid}_${userSwiped.uid}`), {
-      from: currentUser.uid,
-      to: userSwiped.uid,
-      timestamp: new Date(),
-    });
-
-    const docRef = doc(db, 'swipes', `${userSwiped.uid}_${currentUser.uid}`);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      const matchId = [currentUser.uid, userSwiped.uid].sort().join('_');
-
-      await setDoc(doc(db, 'matches', matchId), {
-        users: [currentUser.uid, userSwiped.uid],
-        createdAt: new Date(),
+    try {
+      // Zapisz swipe
+      await setDoc(doc(db, 'swipes', `${currentUser.uid}_${userSwiped.uid}`), {
+        from: currentUser.uid,
+        to: userSwiped.uid,
+        timestamp: new Date(),
       });
 
-      // przejście do czatu z matchId
-      // @ts-ignore
-      navigation.navigate('Chat', { matchId });
-    }
-  };
+      // Sprawdź czy jest match
+      const reverseSwipe = await getDoc(doc(db, 'swipes', `${userSwiped.uid}_${currentUser.uid}`));
 
-  const handleSwipeLeft = (userSwiped: any) => {
-    console.log('Pominięto:', userSwiped.name);
+      if (reverseSwipe.exists()) {
+        const matchId = [currentUser.uid, userSwiped.uid].sort().join('_');
+        await setDoc(doc(db, 'matches', matchId), {
+          users: [currentUser.uid, userSwiped.uid],
+          createdAt: new Date(),
+        });
+        
+        Alert.alert("MATCH! 🔥", "Masz parę! Przenoszę do czatu.");
+        // @ts-ignore
+        navigation.navigate('Chat', { matchId });
+      }
+    } catch (error) {
+      console.log('Błąd swipe:', error);
+    }
   };
 
   useEffect(() => {
@@ -73,36 +73,41 @@ const HomeScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" />
-        <Text>Ładowanie użytkowników...</Text>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text>Szukam gym bros...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Dopasuj gym bro/sis</Text>
-      {users.length === 0 && <Text>Brak osób do wyświetlenia 😔</Text>}
-      {users.map((user, index) => (
-        <SwipeCard
-          key={index}
-          name={user.name}
-          gym={user.gym}
-          goal={user.goal}
-          city={user.city}
-          onSwipeRight={() => handleSwipeRight(user)}
-          onSwipeLeft={() => handleSwipeLeft(user)}
-        />
-      ))}
+      <Text style={styles.header}>Dopasuj Gym Partnera</Text>
+      
+      {users.length === 0 ? (
+        <Text style={styles.info}>Brak nowych osób w okolicy 😔</Text>
+      ) : (
+        users.map((user, index) => (
+          <SwipeCard
+            key={index}
+            name={user.name || 'Nieznajomy'}
+            gym={user.gym || 'Brak danych'}
+            goal={user.goal || 'Brak danych'}
+            city={user.city || 'Brak danych'}
+            onSwipeRight={() => handleSwipeRight(user)}
+            onSwipeLeft={() => console.log('Lewo')}
+          />
+        ))
+      )}
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
+  container: { padding: 20, paddingBottom: 50 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20, marginTop: 10 },
+  info: { textAlign: 'center', marginTop: 50, fontSize: 18, color: 'gray' },
 });
 
 export default HomeScreen;
